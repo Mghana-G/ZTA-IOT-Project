@@ -1,52 +1,56 @@
+import json
+from pathlib import Path
 from datetime import datetime
-from dateutil.parser import parse as parse_date
 
-def calculate_trust_score(telemetry: dict) -> float:
-    """
-    Calculate the trust score based on IoT telemetry.
-    Inputs expected in telemetry:
-        - firmware_hash: str
-        - reboot_frequency: float
-        - patch_history: List of ISO date strings
-        - port_exposure_ratio: float
-        - historical_behavior: {
-            average_reboots: float
-        }
-    """
+# Load trusted firmware hashes
+hash_file = Path(__file__).parent / "firmware_hashes.json"
+with open(hash_file, "r") as f:
+    TRUSTED_FIRMWARE_HASHES = json.load(f)
 
+def calculate_trust_score(telemetry):
+    """
+    Calculates the trust score based on multiple telemetry metrics.
+    Returns (score, firmware_verified)
+    """
     score = 0
 
-    # --- 1. Firmware Hash (30 pts) ---
-    known_good_hash = "abc123"
-    current_hash = telemetry.get("firmware_hash")
-    score += 30 if current_hash == known_good_hash else 0
+    # === 1. Firmware Hash ===
+    version = telemetry.get("firmware_version")
+    reported_hash = telemetry.get("firmware_hash")
+    expected_hash = TRUSTED_FIRMWARE_HASHES.get(version)
+    firmware_verified = (reported_hash == expected_hash)
+    score += 30 if firmware_verified else 0
 
-    # --- 2. Reboot Frequency (20 pts) ---
-    r_curr = telemetry.get("reboot_frequency", 0)
-    r_avg = telemetry.get("historical_behavior", {}).get("average_reboots", 1)
-
+    # === 2. Patch History ===
+    patch_date_str = telemetry.get("last_patch_date")
     try:
-        rf_score = max(0, (2 - (r_curr / r_avg)) * 20)
-    except ZeroDivisionError:
-        rf_score = 0
+        patch_date = datetime.strptime(patch_date_str, "%Y-%m-%d")
+        days_since_patch = (datetime.now() - patch_date).days
+        if days_since_patch <= 60:
+            score += 20
+        # else: 0 points
+    except:
+        pass  # malformed or missing date = 0 points
 
-    score += rf_score
+    # === 3. Port Exposure Ratio (PER) ===
+    open_ports = telemetry.get("open_ports", [])
+    required_ports = telemetry.get("required_ports", [])
+    if open_ports and required_ports:
+        risky_ports = len(set(open_ports) - set(required_ports))
+        per = risky_ports / max(len(open_ports), 1)  # prevent div by 0
+        if per <= 0.5:
+            score += 20
+        elif per < 1.0:
+            score += max(0, (2 - 2 * per) * 20)
+        # else: 0 points
 
-    # --- 3. Patch History (20 pts) ---
-    patch_dates = telemetry.get("patch_history", [])
-    if patch_dates:
-        last_patch_date = max([parse_date(d) for d in patch_dates])
-        days_since_patch = (datetime.now() - last_patch_date).days
-        normalized = min(max((days_since_patch - 30) / 150, 0), 1)
-        patch_score = (1 - normalized) * 20
-    else:
-        patch_score = 0
+    # === 4. Uptime (Reboot Proxy) ===
+    uptime = telemetry.get("uptime", 0)
+    if uptime >= 86400:  # >= 1 day
+        score += 20
+    elif uptime >= 43200:  # >= 12 hours
+        score += 10
+    # else: 0
 
-    score += patch_score
-
-    # --- 4. Port Exposure Ratio (20 pts) ---
-    per = telemetry.get("port_exposure_ratio", 1.0)  # default to risky
-    per_score = max(0, (2 - 2 * per) * 20)
-    score += per_score
-
-    return round(score, 2)
+    # === Total Max Score = 90 (we’ll scale or extend later) ===
+    return round(score, 2), firmware_verified
