@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Zero Trust IoT Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2rem;
+            background-color: #f9f9f9;
+        }
+
+        h2 {
+            color: #333;
+        }
+
+        /* Flash Messages */
+        .flash-message {
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            border-left: 6px solid;
+            border-radius: 4px;
+        }
+
+        .flash-success {
+            background-color: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .flash-warning {
+            background-color: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+
+        .flash-error {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+
+        /* Table Styling */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            background-color: #fff;
+            margin-top: 1rem;
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #4285f4;
+            color: white;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        .status {
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .trusted { color: green; }
+        .restricted { color: orange; }
+        .block { color: red; }
+
+        /* Delete Button */
+        .delete-button {
+            background-color: red;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            cursor: pointer;
+        }
+
+        .delete-button:hover {
+            background-color: darkred;
+        }
+
+        /* Enforcement Result Box */
+        .result-box {
+            background-color: #ffffff;
+            border: 1px solid #ccc;
+            padding: 1rem;
+            margin-top: 2rem;
+        }
+
+        pre {
+            background: #f4f4f4;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Zero Trust IoT Device Dashboard</h2>
+
+    <!-- ✅ Flash message display -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash-message
+              {% if category == 'success' %}flash-success
+              {% elif category == 'warning' %}flash-warning
+              {% else %}flash-error{% endif %}">
+              {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- ✅ Delete All Devices Button -->
+    <form action="{{ url_for('dashboard.delete_all_devices') }}" method="post"
+          onsubmit="return confirm('Are you sure you want to delete all device records?');">
+        <button type="submit" class="delete-button">Delete All Devices</button>
+    </form>
+
+    <!-- ✅ Device Table -->
+    <table>
+        <tr>
+            <th>MAC Address</th>
+            <th>Interface</th>
+            <th>Policy</th>
+            <th>Trust Score</th>
+            <th>Firmware Verified</th>
+            <th>Last Seen</th>
+        </tr>
+        {% for device in devices %}
+        <tr>
+            <td>{{ device.mac_address }}</td>
+            <td>{{ device.telemetry.interface }}</td>
+            <td class="status {{ device.last_enforced_policy }}">{{ device.last_enforced_policy|capitalize }}</td>
+            <td>{{ device.trust_score }}</td>
+            <td>{{ "✅" if device.firmware_verified else "❌" }}</td>
+            <td>{{ device.last_seen_at }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <!-- ✅ Last Result Display -->
+    {% if result %}
+    <div class="result-box">
+        <h3>🚦 Last Enforcement Result for {{ result.mac_address }}</h3>
+        <p><strong>Trust Score:</strong> {{ result.trust_score }}</p>
+        <p><strong>Policy:</strong> {{ result.policy_type }}</p>
+        <p><strong>Interface:</strong> {{ result.interface }}</p>
+
+        <h4>🔁 Rollback Commands:</h4>
+        <pre>{{ result.rollback | join('\n') }}</pre>
+
+        <h4>✅ Enforcement Commands:</h4>
+        <pre>{{ result.commands | join('\n') }}</pre>
+    </div>
+    {% endif %}
+
+</body>
+</html>

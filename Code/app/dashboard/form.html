@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register IoT Device</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2rem;
+            background-color: #f5f5f5;
+        }
+        h2 {
+            color: #333;
+        }
+        .nav {
+            margin-bottom: 1.5rem;
+        }
+        a.dashboard-link {
+            padding: 8px 16px;
+            background-color: #444;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        a.dashboard-link:hover {
+            background-color: #222;
+        }
+        form {
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            max-width: 600px;
+        }
+        label {
+            display: block;
+            margin-top: 1rem;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            margin-top: 1.5rem;
+            padding: 10px 20px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #3367d6;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="nav">
+        <a class="dashboard-link" href="/dashboard">📊 Go to Dashboard</a>
+    </div>
+
+    <h2>IoT Device Registration</h2>
+
+    <form method="POST" action="/submit">
+        <label for="mac_address">MAC Address</label>
+        <input type="text" name="mac_address" required>
+
+        <label for="firmware_hash">Firmware Hash</label>
+        <input type="text" name="firmware_hash" required>
+
+        <label for="firmware_version">Firmware Version</label>
+        <input type="text" name="firmware_version" required>
+
+        <label for="uptime">Uptime (in seconds)</label>
+        <input type="number" name="uptime" min="0" required>
+
+        <label for="last_patch_date">Last Patch Date (YYYY-MM-DD)</label>
+        <input type="date" name="last_patch_date" required>
+
+        <label for="open_ports">Open Ports (comma-separated)</label>
+        <input type="text" name="open_ports" placeholder="e.g. 22, 80, 443">
+
+        <label for="required_ports">Required Ports (comma-separated)</label>
+        <input type="text" name="required_ports" placeholder="e.g. 22, 443" required>
+
+        <label for="interface">Interface (e.g. FastEthernet0/1)</label>
+        <input type="text" name="interface" required>
+
+        <label for="pep_address">PEP Address (e.g. 192.168.100.10)</label>
+        <input type="text" name="pep_address" placeholder="Enter switch IP address" required>
+
+        <button type="submit">Submit Device</button>
+    </form>
+
+</body>
+</html>
