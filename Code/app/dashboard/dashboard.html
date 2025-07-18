@@ -13,6 +13,20 @@
             color: #333;
         }
 
+        /* Summary + Legend */
+        .summary-bar {
+            margin: 1rem 0;
+            font-size: 1rem;
+            padding: 0.5rem;
+            background-color: #e9ecef;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+        }
+
+        .trusted { color: green; }
+        .restricted { color: orange; }
+        .block { color: red; }
+
         /* Flash Messages */
         .flash-message {
             padding: 0.75rem 1rem;
@@ -20,26 +34,23 @@
             border-left: 6px solid;
             border-radius: 4px;
         }
-
         .flash-success {
             background-color: #d4edda;
             border-color: #28a745;
             color: #155724;
         }
-
         .flash-warning {
             background-color: #fff3cd;
             border-color: #ffc107;
             color: #856404;
         }
-
         .flash-error {
             background-color: #f8d7da;
             border-color: #dc3545;
             color: #721c24;
         }
 
-        /* Table Styling */
+        /* Table */
         table {
             border-collapse: collapse;
             width: 100%;
@@ -68,26 +79,35 @@
             border-radius: 4px;
         }
 
-        .trusted { color: green; }
-        .restricted { color: orange; }
-        .block { color: red; }
-
-        /* Delete Button */
+        /* Buttons */
         .delete-button {
             background-color: red;
             color: white;
-            padding: 10px 20px;
+            padding: 6px 12px;
             border: none;
-            border-radius: 5px;
-            margin-bottom: 1rem;
+            border-radius: 4px;
             cursor: pointer;
+            margin-left: 4px;
         }
 
         .delete-button:hover {
             background-color: darkred;
         }
 
-        /* Enforcement Result Box */
+        .evaluate-button {
+            padding: 6px 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .evaluate-button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Result Box */
         .result-box {
             background-color: #ffffff;
             border: 1px solid #ccc;
@@ -101,69 +121,109 @@
             border: 1px solid #ddd;
             overflow-x: auto;
         }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
     </style>
 </head>
 <body>
 
+<div class="top-bar">
     <h2>Zero Trust IoT Device Dashboard</h2>
 
-    <!-- ✅ Flash message display -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="flash-message
-              {% if category == 'success' %}flash-success
-              {% elif category == 'warning' %}flash-warning
-              {% else %}flash-error{% endif %}">
-              {{ message }}
-          </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-
-    <!-- ✅ Delete All Devices Button -->
-    <form action="{{ url_for('dashboard.delete_all_devices') }}" method="post"
-          onsubmit="return confirm('Are you sure you want to delete all device records?');">
-        <button type="submit" class="delete-button">Delete All Devices</button>
+    <!-- 🔙 Back to Upload Form -->
+    <form action="{{ url_for('home') }}" method="get" style="margin: 0;">
+        <button type="submit" class="evaluate-button">⬅️ Back to Upload Form</button>
     </form>
+</div>
 
-    <!-- ✅ Device Table -->
-    <table>
-        <tr>
-            <th>MAC Address</th>
-            <th>Interface</th>
-            <th>Policy</th>
-            <th>Trust Score</th>
-            <th>Firmware Verified</th>
-            <th>Last Seen</th>
-        </tr>
-        {% for device in devices %}
-        <tr>
-            <td>{{ device.mac_address }}</td>
-            <td>{{ device.telemetry.interface }}</td>
-            <td class="status {{ device.last_enforced_policy }}">{{ device.last_enforced_policy|capitalize }}</td>
-            <td>{{ device.trust_score }}</td>
-            <td>{{ "✅" if device.firmware_verified else "❌" }}</td>
-            <td>{{ device.last_seen_at }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+<!-- 📊 Policy Summary -->
+{% if stats %}
+<div class="summary-bar">
+    <strong>📊 Summary:</strong>
+    Total: {{ stats.total }} |
+    <span class="trusted">🟢 Trusted: {{ stats.trusted }}</span> |
+    <span class="restricted">🟠 Restricted: {{ stats.restricted }}</span> |
+    <span class="block">🔴 Blocked: {{ stats.block }}</span>
+</div>
+{% endif %}
 
-    <!-- ✅ Last Result Display -->
-    {% if result %}
-    <div class="result-box">
-        <h3>🚦 Last Enforcement Result for {{ result.mac_address }}</h3>
-        <p><strong>Trust Score:</strong> {{ result.trust_score }}</p>
-        <p><strong>Policy:</strong> {{ result.policy_type }}</p>
-        <p><strong>Interface:</strong> {{ result.interface }}</p>
+<!-- ✅ Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash-message
+          {% if category == 'success' %}flash-success
+          {% elif category == 'warning' %}flash-warning
+          {% else %}flash-error{% endif %}">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
 
-        <h4>🔁 Rollback Commands:</h4>
-        <pre>{{ result.rollback | join('\n') }}</pre>
+<!-- 🗑️ Delete All Button -->
+<form action="{{ url_for('dashboard.delete_all_devices') }}" method="post"
+      onsubmit="return confirm('Are you sure you want to delete all device records?');">
+    <button type="submit" class="delete-button">🗑️ Delete All Devices</button>
+</form>
 
-        <h4>✅ Enforcement Commands:</h4>
-        <pre>{{ result.commands | join('\n') }}</pre>
-    </div>
-    {% endif %}
+<!-- 📋 Device Table -->
+<table>
+    <tr>
+        <th>MAC Address</th>
+        <th>Interface</th>
+        <th>Policy</th>
+        <th>Trust Score</th>
+        <th>Firmware Verified</th>
+        <th>Last Seen</th>
+        <th>Actions</th>
+    </tr>
+    {% for device in devices %}
+    <tr>
+        <td>{{ device.mac_address }}</td>
+        <td>{{ device.telemetry.interface or "N/A" }}</td>
+        <td class="status {{ device.last_enforced_policy }}">{{ device.last_enforced_policy|capitalize }}</td>
+        <td>{% if device.trust_score is defined and device.trust_score is not none %}{{ device.trust_score }}{% else %}<em>Pending</em>{% endif %}</td>
+        <td>{{ "✅" if device.firmware_verified else "❌" }}</td>
+        <td>{{ device.last_seen_at or "N/A" }}</td>
+        <td>
+            <form action="{{ url_for('dashboard.manual_evaluate', mac=device.mac_address) }}" method="post" style="display:inline;">
+                <button type="submit" class="evaluate-button">🔁 Evaluate</button>
+            </form>
+            <form action="{{ url_for('dashboard.delete_device', mac=device.mac_address) }}" method="post" style="display:inline;" 
+                  onsubmit="return confirm('Delete device {{ device.mac_address }}?');">
+                <button type="submit" class="delete-button">🗑️ Delete</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+<!-- 🧾 Last Enforcement -->
+{% if result %}
+<div class="result-box">
+    <h3>🚦 Last Enforcement Result for {{ result.mac_address }}</h3>
+    <p><strong>Trust Score:</strong> {{ result.trust_score }}</p>
+    <p><strong>Policy:</strong> {{ result.policy_type }}</p>
+    <p><strong>Interface:</strong> {{ result.interface }}</p>
+
+    <h4>🔁 Rollback Commands:</h4>
+    <pre>{{ result.rollback | join('\n') }}</pre>
+
+    <h4>✅ Enforcement Commands:</h4>
+    <pre>{{ result.commands | join('\n') }}</pre>
+</div>
+{% endif %}
+
+<!-- Flash timeout -->
+<script>
+    setTimeout(() => {
+        document.querySelectorAll('.flash-message').forEach(el => el.style.display = 'none');
+    }, 4000);
+</script>
 
 </body>
 </html>

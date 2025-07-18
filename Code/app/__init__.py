@@ -28,7 +28,7 @@ def create_app():
             uptime = int(request.form.get("uptime", 0))
             patch_date = request.form.get("last_patch_date")
             interface = request.form.get("interface")
-            pep_address = request.form.get("pep_address")  # ✅ added to capture it
+            pep_address = request.form.get("pep_address")
 
             open_ports_raw = request.form.get("open_ports", "")
             required_ports_raw = request.form.get("required_ports", "")
@@ -44,7 +44,7 @@ def create_app():
                 "open_ports": open_ports,
                 "required_ports": required_ports,
                 "interface": interface,
-                "pep_address": pep_address  # ✅ included in telemetry
+                "pep_address": pep_address
             }
 
             trust_score, firmware_verified = calculate_trust_score(telemetry)
@@ -61,7 +61,42 @@ def create_app():
     @app.route("/dashboard")
     def dashboard():
         all_devices = get_all_devices()
-        return render_template("dashboard.html", devices=all_devices)
+
+        stats = {
+        "trusted": sum(1 for d in all_devices if d.get("last_enforced_policy") == "trusted"),
+        "restricted": sum(1 for d in all_devices if d.get("last_enforced_policy") == "restricted"),
+        "block": sum(1 for d in all_devices if d.get("last_enforced_policy") == "block"),
+        "total": len(all_devices)
+    }
+
+        return render_template("dashboard.html", devices=all_devices, stats=stats)
+
+
+    @app.route("/dashboard/evaluate/<mac>", methods=["POST"])
+    def manual_evaluate(mac):
+        try:
+            device = get_device(mac)
+            if not device:
+                return jsonify({"error": "Device not found"}), 404
+
+            telemetry = device.get("telemetry", {})
+            trust_score, firmware_verified = calculate_trust_score(telemetry)
+            updated = save_or_update_device(mac, telemetry, trust_score, firmware_verified)
+            result = determine_policy(mac, trust_score)
+            update_enforced_policy(mac, result["policy_type"])
+
+            return jsonify({
+                "mac_address": mac,
+                "trust_score": trust_score,
+                "firmware_verified": firmware_verified,
+                "policy_type": result["policy_type"],
+                "rollback": result["rollback"],
+                "commands": result["commands"],
+                "interface": result["interface"],
+                "timestamp": result["timestamp"]
+            })
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
     @app.route("/telemetry/upload", methods=["POST"])
     def upload_telemetry():
@@ -75,21 +110,45 @@ def create_app():
 
             existing = get_device(mac)
             if existing:
-                telemetry["required_ports"] = existing["telemetry"].get("required_ports", [])
+                existing_telemetry = existing.get("telemetry", {})
+                for key in ["interface", "pep_address", "firmware_hash", "required_ports"]:
+                    if key in existing_telemetry:
+                        telemetry[key] = existing_telemetry[key]
 
-            trust_score, firmware_verified = calculate_trust_score(telemetry)
-            save_or_update_device(mac, telemetry, trust_score, firmware_verified)
-
-            result = determine_policy(mac, trust_score)
-            update_enforced_policy(mac, result["policy_type"])
+            save_or_update_device(mac, telemetry, None, False)
 
             return jsonify({
                 "mac_address": mac,
-                "trust_score": trust_score,
-                "firmware_verified": firmware_verified,
-                "policy_type": result["policy_type"],
-                "commands": result["commands"],
-                "interface": result["interface"]
+                "status": "stored",
+                "telemetry": telemetry
+            }), 200
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/telemetry/ingest", methods=["POST"])
+    def ingest_telemetry():
+        try:
+            data = request.get_json()
+            mac = data.get("mac_address")
+            telemetry = data.get("telemetry")
+
+            if not mac or not telemetry:
+                return jsonify({"error": "Missing mac_address or telemetry"}), 400
+
+            existing = get_device(mac)
+            if existing:
+                existing_telemetry = existing.get("telemetry", {})
+                for key in ["interface", "pep_address", "firmware_hash", "required_ports"]:
+                    if key in existing_telemetry:
+                        telemetry[key] = existing_telemetry[key]
+
+            save_or_update_device(mac, telemetry, None, False)
+
+            return jsonify({
+                "status": "ok",
+                "mac_address": mac,
+                "stored_telemetry": telemetry
             }), 200
 
         except Exception as e:

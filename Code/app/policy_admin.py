@@ -1,10 +1,8 @@
 from .db import get_device  # assumes this retrieves device by mac
 from datetime import datetime
-import paramiko
 import os
 import time
 import socket
-from netmiko import ConnectHandler
 import pexpect
 import logging
 # Policy ranges and associated enforcement logic
@@ -119,12 +117,7 @@ def determine_policy(mac_address, trust_score):
         "timestamp": datetime.now().isoformat()
     }
 
-import paramiko
-import os
-import time
-
-
-# Enable Paramiko's verbose logging
+# Enable logging
 logging.basicConfig(level=logging.DEBUG)
 
 
