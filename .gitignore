@@ -1,0 +1,15 @@
+# Ignore the virtual environment
+Code/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore DB file
+app/telemetry_db.json
+
+# Ignore VSCode settings (optional)
+.vscode/
+
+# Ignore environment variables (optional)
+.env
