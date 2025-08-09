@@ -51,10 +51,6 @@ The system includes:
 
 ## Installation & Setup
 
-# Clone the repository
-git clone https://github.com/<your-username>/<repo-name>.git
-cd <repo-name>
-
 # Create a virtual environment
 python3 -m venv venv
 source venv/bin/activate
